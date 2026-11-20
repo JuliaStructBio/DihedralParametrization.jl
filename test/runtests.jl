@@ -839,6 +839,17 @@ issidechain(bp, step) = bp.atoms[step.aidx].aname ∉ (:N, :CA, :C, :OXT)
         Jsmall = zeros(size(Jpert) .- 1)
         @test_throws DimensionMismatch coordinatejacobian!(Jsmall, plan, Xpert)
 
+        # Rows for a subset of atoms, in the order given.
+        let atoms = [natoms(plan), 1, 2, natoms(plan) ÷ 2]
+            rows = reduce(vcat, [(3t - 2):3t for t in atoms])
+            @test coordinatejacobian(plan, Xpert, atoms) == Jpert[rows, :]
+            @test coordinatejacobian(plan, MVector{3}.(Xpert), atoms) == Jpert[rows, :]
+            @test coordinatejacobian!(fill(NaN, length(rows), ndihedrals(plan)), plan, Xpert, atoms) == Jpert[rows, :]
+            @test size(coordinatejacobian(plan, Xpert, Int[])) == (0, ndihedrals(plan))
+            @test_throws DimensionMismatch coordinatejacobian!(zeros(length(rows) + 3, ndihedrals(plan)), plan, Xpert, atoms)
+            @test_throws BoundsError coordinatejacobian(plan, Xpert, [natoms(plan) + 1])
+        end
+
         # Other 3-vector element types are converted.
         let Xm = MVector{3}.(Xpert), rngm = Random.Xoshiro(7),
                 wm = [randn(rngm, MVector{3, Float64}) for _ in 1:natoms(plan)], vm = randn(rngm, ndihedrals(plan))
