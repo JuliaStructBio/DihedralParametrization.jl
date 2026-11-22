@@ -235,6 +235,44 @@ coordinatejacobian!(J::AbstractMatrix, plan::JacobianPlan, X::AbstractVector{<:A
     coordinatejacobian!(J, plan, svectors(X))
 
 """
+    J = coordinatejacobian(plan::JacobianPlan, X::AbstractVector{<:SVector{3}}, atoms::AbstractVector{<:Integer})
+    coordinatejacobian!(J, plan, X, atoms)
+
+The rows of `coordinatejacobian(plan, X)` for the atoms `atoms`, in that order: the
+rows for `atoms[k]` are `3(k-1)+1:3k`. Equal to selecting those rows from the full
+Jacobian, without forming it. `J` must have size `(3 * length(atoms), plan.ndih)`.
+"""
+function coordinatejacobian(plan::JacobianPlan, X::AbstractVector{<:SVector{3}}, atoms::AbstractVector{<:Integer})
+    J = zeros(eltype(eltype(X)), 3 * length(atoms), plan.ndih)
+    return coordinatejacobian!(J, plan, X, atoms)
+end
+
+function coordinatejacobian!(J::AbstractMatrix, plan::JacobianPlan, X::AbstractVector{<:SVector{3}}, atoms::AbstractVector{<:Integer})
+    Base.require_one_based_indexing(J, X, atoms)
+    _checklengths(plan, X, "X")
+    size(J) == (3 * length(atoms), plan.ndih) ||
+        throw(DimensionMismatch("size(J) = $(size(J)) does not match $((3 * length(atoms), plan.ndih)) for $(length(atoms)) atoms"))
+    fill!(J, zero(eltype(J)))
+    for (r, t) in enumerate(atoms)
+        checkbounds(X, t)
+        k = plan.deepest[t]
+        k == 0 && continue
+        xt = X[t]
+        rows = (3 * (r - 1) + 1):(3 * r)
+        while k != 0
+            u, p = _axis(plan, X, k)
+            J[rows, k] = cross(u, xt - p)
+            k = plan.parent[k]
+        end
+    end
+    return J
+end
+coordinatejacobian(plan::JacobianPlan, X::AbstractVector{<:AbstractVector}, atoms::AbstractVector{<:Integer}) =
+    coordinatejacobian(plan, svectors(X), atoms)
+coordinatejacobian!(J::AbstractMatrix, plan::JacobianPlan, X::AbstractVector{<:AbstractVector}, atoms::AbstractVector{<:Integer}) =
+    coordinatejacobian!(J, plan, svectors(X), atoms)
+
+"""
     g = vjp!(g, plan::JacobianPlan, X::AbstractVector{<:SVector{3}}, w::AbstractVector{<:SVector{3}}; workspace)
 
 Compute `g = J' * w` without forming `J`, where `J = ∂X/∂θ`. `w[t]` is the
