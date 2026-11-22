@@ -845,6 +845,7 @@ issidechain(bp, step) = bp.atoms[step.aidx].aname ∉ (:N, :CA, :C, :OXT)
             @test coordinatejacobian(plan, Xpert, atoms) == Jpert[rows, :]
             @test coordinatejacobian(plan, MVector{3}.(Xpert), atoms) == Jpert[rows, :]
             @test coordinatejacobian!(fill(NaN, length(rows), ndihedrals(plan)), plan, Xpert, atoms) == Jpert[rows, :]
+            @test coordinatejacobian!(fill(NaN, length(rows), ndihedrals(plan)), plan, MVector{3}.(Xpert), atoms) == Jpert[rows, :]
             @test size(coordinatejacobian(plan, Xpert, Int[])) == (0, ndihedrals(plan))
             @test_throws DimensionMismatch coordinatejacobian!(zeros(length(rows) + 3, ndihedrals(plan)), plan, Xpert, atoms)
             @test_throws BoundsError coordinatejacobian(plan, Xpert, [natoms(plan) + 1])
